@@ -331,7 +331,11 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser(description='Process some integers.')
     parser.add_argument('mpower_file', nargs='?', help='MPower filename')
+    parser.add_argument('--debug', action=argparse.BooleanOptionalAction)
     args = parser.parse_args()
+
+    if args.debug:
+        lg.getLogger().setLevel(lg.DEBUG)
 
     mpower_file = MPowerFile(args.mpower_file)
     mpower_file.to_csv()
