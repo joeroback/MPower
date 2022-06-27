@@ -165,23 +165,20 @@ class MPowerFile:
         for record in self.far_files['BrakeContact.far'].records:
             assert len(record) == 2
             series_brake_pressure.loc[record[0]] = record[1]
-        series_brake_pressure = series_brake_pressure.interpolate(method='ffill')
-        series_brake_pressure = series_brake_pressure.interpolate(method='bfill')
+        series_brake_pressure = series_brake_pressure.interpolate(method='ffill').fillna(0)
 
         series_gear = pd.Series(index=self.time_index, name='GEAR', dtype='UInt64')
         for record in self.far_files['Gearbox.far'].records:
             assert len(record) == 3
             series_gear.loc[record[0]] = record[2]
-        series_gear = series_gear.interpolate(method='ffill')
-        series_gear = series_gear.interpolate(method='bfill')
+        series_gear = series_gear.interpolate(method='ffill').fillna(0)
 
         series_heading = pd.Series(index=self.time_index, name='HEADING_DEG', dtype='float64')
         for record in self.far_files['Heading.far'].records:
             assert len(record) == 2
             series_heading.loc[record[0]] = math.degrees(record[1])
         # TODO FILL OR LINEAR???
-        series_heading = series_heading.interpolate(method='ffill')
-        series_heading = series_heading.interpolate(method='bfill')
+        series_heading = series_heading.interpolate(method='ffill').fillna(0)
 
         series_speed_kph = pd.Series(index=self.time_index, name='SPEED_KPH', dtype='float64')
         series_speed_mph = pd.Series(index=self.time_index, name='SPEED_MPH', dtype='float64')
@@ -189,20 +186,20 @@ class MPowerFile:
             assert len(record) == 2
             series_speed_kph.loc[record[0]] = record[1] * 3.6
             series_speed_mph.loc[record[0]] = record[1] * 2.237
-        series_speed_kph = series_speed_kph.interpolate(method='linear', limit_direction='both')
-        series_speed_mph = series_speed_mph.interpolate(method='linear', limit_direction='both')
+        series_speed_kph = series_speed_kph.interpolate(method='linear', limit_direction='forward').fillna(0)
+        series_speed_mph = series_speed_mph.interpolate(method='linear', limit_direction='forward').fillna(0)
 
         series_rpm = pd.Series(index=self.time_index, name='RPM', dtype='float64')
         for record in self.far_files['RPM.far'].records:
             assert len(record) == 2
             series_rpm.loc[record[0]] = record[1]
-        series_rpm = series_rpm.interpolate(method='linear', limit_direction='both')
+        series_rpm = series_rpm.interpolate(method='linear', limit_direction='forward').fillna(0)
 
         series_steering = pd.Series(index=self.time_index, name='STEERINGANGLE', dtype='float64')
         for record in self.far_files['Steering.far'].records:
             assert len(record) == 2
             series_steering.loc[record[0]] = record[1]
-        series_steering = series_steering.interpolate(method='linear', limit_direction='both')
+        series_steering = series_steering.interpolate(method='linear', limit_direction='forward').fillna(0)
 
         series_distance_km = pd.Series(index=self.time_index, name='DISTANCE_KM', dtype='float64')
         series_distance_mi = pd.Series(index=self.time_index, name='DISTANCE_MILE', dtype='float64')
@@ -210,26 +207,27 @@ class MPowerFile:
             assert len(record) == 2
             series_distance_km.loc[record[0]] = record[1] / 1000.0
             series_distance_mi.loc[record[0]] = record[1] / 1609.0
-        series_distance_km = series_distance_km.interpolate(method='linear', limit_direction='both')
-        series_distance_mi = series_distance_mi.interpolate(method='linear', limit_direction='both')
+        series_distance_km = series_distance_km.interpolate(method='linear', limit_direction='forward').fillna(0)
+        series_distance_mi = series_distance_mi.interpolate(method='linear', limit_direction='forward').fillna(0)
 
         series_linealg = pd.Series(index=self.time_index, name='LINEALG', dtype='float64')
         for record in self.far_files['AccelerationLongitudinal.far'].records:
             assert len(record) == 2
             series_linealg.loc[record[0]] = record[1]
-        series_linealg = series_linealg.interpolate(method='nearest', limit_direction='both')
+        series_linealg = series_linealg.interpolate(method='nearest', limit_direction='forward').fillna(0)
 
         series_lateralg = pd.Series(index=self.time_index, name='LATERALG', dtype='float64')
         for record in self.far_files['AccelerationLateral.far'].records:
             assert len(record) == 2
             series_lateralg.loc[record[0]] = record[1]
-        series_lateralg = series_lateralg.interpolate(method='nearest', limit_direction='both')
+        series_lateralg = series_lateralg.interpolate(method='nearest', limit_direction='forward').fillna(0)
 
         series_throttle = pd.Series(index=self.time_index, name='THROTTLE', dtype='float64')
         for record in self.far_files['AcceleratorPedal.far'].records:
             assert len(record) == 2
             series_throttle.loc[record[0]] = record[1] / 100.0
-        series_throttle = series_throttle.interpolate(method='linear', limit_direction='both')
+        series_throttle = series_throttle.interpolate(method='linear', limit_direction='forward')
+        series_throttle = series_throttle.fillna(0)
 
         df_gps = pd.DataFrame(index=self.time_index, columns=['LATITUDE','LONGITUDE'], dtype='float64')
         for record in self.far_files['Location.far'].records:
@@ -269,9 +267,6 @@ class MPowerFile:
                 if gt.lat != None:
                     assert gt.lng
                     gt.n = gt.n + 1
-
-        # with pd.option_context('display.max_rows', None, 'display.max_columns', None, 'display.max_colwidth', None, 'display.memory_usage', None, 'display.width', 20000):
-        #     lg.debug(df)
 
         # minimum CSV headers required by Telemetry Overlay when importing a Harry's Laptimer formatted CSV
         # headers = [
@@ -321,6 +316,9 @@ class MPowerFile:
         df = df.merge(series_throttle, left_index=True, right_index=True)
         df = df.merge(series_brake_pressure, left_index=True, right_index=True)
         df = df.merge(series_steering, left_index=True, right_index=True)
+
+        with pd.option_context('display.max_rows', None, 'display.max_columns', None, 'display.max_colwidth', None, 'display.memory_usage', None, 'display.width', 20000):
+            lg.debug(df)
 
         print('Harry\'s GPS LapTimer', file=sys.stdout)
         df.to_csv(path_or_buf=sys.stdout, sep=',', header=True, index=False)
