@@ -50,6 +50,10 @@ FAR_FILE_FORMAT = {
         'record_size': 16,
         'record_format': '<dd',
     },
+    'Gear.far': {
+        'record_size': 16,
+        'record_format': '<dQ',
+    },
     'Gearbox.far': {
         'record_size': 24,
         'record_format': '<dQQ',
@@ -119,8 +123,6 @@ class MPowerFile:
 
         lg.info(f'Found {len(self.time_index)} events')
         assert len(self.time_index) > 0
-
-
 
     def to_csv(self):
         def format_laptime(lt):
@@ -254,12 +256,14 @@ class MPowerFile:
                 if gt.lat != None:
                     assert gt.lng
                     lg.debug(f'Filling {gt.n} rows. ({gt.lat},{gt.lng}) -> ({lat}, {lng}), {i-gt.n}:{i-1}')
-                    extra_points = geoid.npts(gt.lng, gt.lat, lng, lat, gt.n)
-                    for ei, ep in enumerate(extra_points):
-                        lg.debug(f'point: {ei} {i - gt.n + ei} {ep}')
-                        df_gps.iloc[i - gt.n + ei]['LATITUDE'] = ep[1]
-                        df_gps.iloc[i - gt.n + ei]['LONGITUDE'] = ep[0]
-                    gt.n = 0
+                    try:
+                        extra_points = geoid.npts(gt.lng, gt.lat, lng, lat, gt.n)
+                        for ei, ep in enumerate(extra_points):
+                            lg.debug(f'point: {ei} {i - gt.n + ei} {ep}')
+                            df_gps.iloc[i - gt.n + ei]['LATITUDE'] = ep[1]
+                            df_gps.iloc[i - gt.n + ei]['LONGITUDE'] = ep[0]
+                    except Exception as e:
+                        lg.warning(f'Unable to interpolate GPS points {gt.lng}, {gt.lat} -> {lng}, {lat} for {gt.n} points: {e}')
                 assert pd.notnull(lng)
                 gt.lat = lat
                 gt.lng = lng
