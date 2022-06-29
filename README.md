@@ -2,6 +2,12 @@
 
 Convert BMW MPower files from BMW M Laptimer to CSV's in Harry's Laptimer format, compatiable with Race Render 3 and Telemetry Overlay.
 
+## MPower Notes
+
+Location and heading data seem to be updated at 1hz. Unclear if this come from phone GPS or car GPS. Connecting a 10hz XGPS160 external GPS did not change the GPS update rate.
+
+Car data seems to be updated at 10hz: AccelerationLateral, AccelerationLongitudinal, AcceleratorPedal, BrakeContact, Distance, RPM, Speed, Steering.
+
 ## Decoding MPower Files
 
 The exported mpower files are in fact zip archives. Each archive consists of many `.far` files, some `.json` files, and a PNG file. What data is in each `.far` file seems to vary from vehicle model to vehicle model.
@@ -48,7 +54,7 @@ Far files from an iPhone 13 Pro running iOS 15 on a 2022 BMW M3 Competition xDri
         Record Size -> 8 bytes, integer
         Record:
             Time -> 8 bytes, float, epoch in iOS timezone
-            ?? -> 8 bytes
+            ?? -> 8 bytes (this was all zeros for M3 Competition)
 
     Gearbox.far:
         Record Size -> 8 bytes, integer
