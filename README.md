@@ -56,3 +56,34 @@ Far files from an iPhone 13 Pro running iOS 15 on a 2022 BMW M3 Competition xDri
             Time -> 8 bytes, float, epoch in iOS timezone
             Mode -> 8 bytes, integer # todo detail modes
             Gear -> 8 bytes, integer # todo detail values
+
+    Heading.far:
+        Record Size -> 8 bytes, integer
+        Record:
+            Time -> 8 bytes, float, epoch in iOS timezone
+            Heading -> 8 bytes, float, degrees
+
+    Location.far:
+        Record Size -> 8 bytes, integer
+        Record:
+            Time -> 8 bytes, float, epoch in iOS timezone
+            Latitude -> 8 bytes, float, degrees
+            Longitude -> 8 bytes, float, degrees
+
+    RPM.far:
+        Record Size -> 8 bytes, integer
+        Record:
+            Time -> 8 bytes, float, epoch in iOS timezone
+            RPM -> 8 bytes, float
+
+    Speed.far:
+        Record Size -> 8 bytes, integer
+        Record:
+            Time -> 8 bytes, float, epoch in iOS timezone
+            Speed -> 8 bytes, float, meters per second
+
+    Steering.far:
+        Record Size -> 8 bytes, integer
+        Record:
+            Time -> 8 bytes, float, epoch in iOS timezone
+            Steering Wheel Angle -> 8 bytes, float, degrees

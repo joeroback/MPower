@@ -8,6 +8,7 @@ import sys
 import zipfile
 
 import logging as lg
+import numpy as np
 import pandas as pd
 
 from datetime import datetime, timezone
@@ -236,26 +237,27 @@ class MPowerFile:
             assert len(record) == 3
             df_gps.loc[record[0], 'LATITUDE'] = record[1]
             df_gps.loc[record[0], 'LONGITUDE'] = record[2]
+        df_gps = df_gps.sort_index()
+
+        # interpolate GPS coordinates using GPS method, can pandas do this??
 
         class GpsTracker:
             def __init__(self):
-                self.lat = None
-                self.lng = None
+                self.lat = np.nan
+                self.lng = np.nan
                 self.n = 0
 
         gt = GpsTracker()
         geoid = Geod(ellps="WGS84")
-
-        # interpolate GPS coordinates using GPS method, can pandas do this??
 
         for i in range(0, len(df_gps)):
             lat = df_gps.iloc[i]['LATITUDE']
             lng = df_gps.iloc[i]['LONGITUDE']
 
             if pd.notnull(lat):
-                if gt.lat != None:
-                    assert gt.lng
-                    lg.debug(f'Filling {gt.n} rows. ({gt.lat},{gt.lng}) -> ({lat}, {lng}), {i-gt.n}:{i-1}')
+                assert pd.notnull(lng)
+                if gt.n > 0:
+                    lg.debug(f'Filling {gt.n} rows. ({gt.lat},{gt.lng}) -> ({lat},{lng}), rows {i-gt.n}:{i-1}')
                     try:
                         extra_points = geoid.npts(gt.lng, gt.lat, lng, lat, gt.n)
                         for ei, ep in enumerate(extra_points):
@@ -264,13 +266,15 @@ class MPowerFile:
                             df_gps.iloc[i - gt.n + ei]['LONGITUDE'] = ep[0]
                     except Exception as e:
                         lg.warning(f'Unable to interpolate GPS points {gt.lng}, {gt.lat} -> {lng}, {lat} for {gt.n} points: {e}')
-                assert pd.notnull(lng)
+
+                    gt.n = 0
                 gt.lat = lat
                 gt.lng = lng
-            else:
-                if gt.lat != None:
-                    assert gt.lng
-                    gt.n = gt.n + 1
+            elif pd.notnull(gt.lat):
+                assert pd.notnull(gt.lng)
+                gt.n = gt.n + 1
+
+        df_gps = df_gps.fillna(0)
 
         # minimum CSV headers required by Telemetry Overlay when importing a Harry's Laptimer formatted CSV
         # headers = [
