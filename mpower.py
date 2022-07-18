@@ -47,6 +47,10 @@ FAR_FILE_FORMAT = {
         'record_size': 16,
         'record_format': '<dd',
     },
+    'CurrentConsumption.far': {
+        'record_size': 16,
+        'record_format': '<dd',
+    },
     'Distance.far': {
         'record_size': 16,
         'record_format': '<dd',
@@ -137,6 +141,7 @@ class MPowerFile:
         lap_index = 1
 
         series_index = pd.Series(index=self.time_index, name='INDEX', dtype='UInt64')
+        series_utc_time = pd.Series(index=self.time_index, name='UTC Time', dtype='float64')
         series_lap_index = pd.Series(index=self.time_index, name='LAPINDEX', dtype='UInt64')
         series_date = pd.Series(index=self.time_index, name='DATE', dtype='string')
         series_time = pd.Series(index=self.time_index, name='TIME', dtype='string')
@@ -154,6 +159,7 @@ class MPowerFile:
             # TODO this assumes recorded timezone is timezone of this running script...
             # might be possible to figure out recorded timezone from JSON files included in mpower file?
             dt = datetime.fromtimestamp(t + self.IOS_EPOCH_HACK).astimezone(timezone.utc)
+            series_utc_time[t] = dt.replace(tzinfo=timezone.utc).timestamp()
             series_date.loc[t] = dt.strftime("%d-%b-%y")
             series_time.loc[t] = dt.strftime("%H:%M:%S.%f")
 
@@ -169,6 +175,15 @@ class MPowerFile:
             assert len(record) == 2
             series_brake_pressure.loc[record[0]] = record[1]
         series_brake_pressure = series_brake_pressure.interpolate(method='ffill').fillna(0)
+
+        series_current_consumption = pd.Series(index=self.time_index, name='CURRENTCONSUMPTION', dtype='float64')
+        for record in self.far_files['CurrentConsumption.far'].records:
+            assert len(record) == 2
+            if record[1] <= 0:
+                series_current_consumption.loc[record[0]] = 0
+            else:
+                series_current_consumption.loc[record[0]] = 235.214 / record[1]
+        series_current_consumption = series_current_consumption.interpolate(method='ffill').fillna(0)
 
         series_gear = pd.Series(index=self.time_index, name='GEAR', dtype='UInt64')
         for record in self.far_files['Gearbox.far'].records:
@@ -304,6 +319,7 @@ class MPowerFile:
 
         df = pd.DataFrame(index=self.time_index)
         df = df.merge(series_index, left_index=True, right_index=True)
+        df = df.merge(series_utc_time, left_index=True, right_index=True)
         df = df.merge(series_lap_index, left_index=True, right_index=True)
         df = df.merge(series_date, left_index=True, right_index=True)
         df = df.merge(series_time, left_index=True, right_index=True)
@@ -323,6 +339,7 @@ class MPowerFile:
         df = df.merge(series_rpm, left_index=True, right_index=True)
         df = df.merge(series_throttle, left_index=True, right_index=True)
         df = df.merge(series_brake_pressure, left_index=True, right_index=True)
+        df = df.merge(series_current_consumption, left_index=True, right_index=True)
         df = df.merge(series_steering, left_index=True, right_index=True)
 
         with pd.option_context('display.max_rows', None, 'display.max_columns', None, 'display.max_colwidth', None, 'display.memory_usage', None, 'display.width', 20000):

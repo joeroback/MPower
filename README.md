@@ -42,7 +42,7 @@ Far files from an iPhone 13 Pro running iOS 15 on a 2022 BMW M3 Competition xDri
         Record Size -> 8 bytes, integer
         Record:
             Time -> 8 bytes, float, epoch in iOS timezone
-            Current MPG -> 8 bytes, float
+            Current Fuel Consumption -> 8 bytes, float (Liters per 100 km, 1L/100km = 235.2145 mpg (US))
 
     Distance.far:
         Record Size -> 8 bytes, integer
