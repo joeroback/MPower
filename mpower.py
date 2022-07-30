@@ -130,45 +130,23 @@ class MPowerFile:
         assert len(self.time_index) > 0
 
     def to_csv(self):
-        def format_laptime(lt):
-            minutes = math.trunc(lt / 60)
-            seconds = math.trunc(lt) - (minutes * 60)
-            microseconds = round((lt - (minutes * 60) - seconds) * 100)
-            return f'{minutes:02d}:{seconds:02d}.{microseconds:02d}'
+        # def format_laptime(lt):
+        #     minutes = math.trunc(lt / 60)
+        #     seconds = math.trunc(lt) - (minutes * 60)
+        #     microseconds = round((lt - (minutes * 60) - seconds) * 100)
+        #     return f'{minutes:02d}:{seconds:02d}.{microseconds:02d}'
 
-        start_lap_time = self.time_index[0]
-        index = 0
-        lap_index = 1
-
-        series_index = pd.Series(index=self.time_index, name='INDEX', dtype='UInt64')
+        series_time = pd.Series(index=self.time_index, name='Time', dtype='float64')
         series_utc_time = pd.Series(index=self.time_index, name='UTC Time', dtype='float64')
-        series_lap_index = pd.Series(index=self.time_index, name='LAPINDEX', dtype='UInt64')
-        series_date = pd.Series(index=self.time_index, name='DATE', dtype='string')
-        series_time = pd.Series(index=self.time_index, name='TIME', dtype='string')
-        series_time_lap = pd.Series(index=self.time_index, name='TIME_LAP', dtype='string')
-        series_height_m = pd.Series(index=self.time_index, name='HEIGHT_M', dtype='UInt64')
-        series_height_ft = pd.Series(index=self.time_index, name='HEIGHT_FT', dtype='UInt64')
-        series_accel_source = pd.Series(index=self.time_index, name='ACCELERATIONSOURCE[CALCULATED/MEASURED/UNDEFINED]', dtype='UInt64')
+
+        start_ts = self.time_index[0]
 
         for t in self.time_index:
-            series_index.loc[t] = index
-            index = index + 1
-
-            series_lap_index.loc[t] = lap_index
-
             # TODO this assumes recorded timezone is timezone of this running script...
             # might be possible to figure out recorded timezone from JSON files included in mpower file?
             dt = datetime.fromtimestamp(t + self.IOS_EPOCH_HACK).astimezone(timezone.utc)
+            series_time.loc[t] = t - start_ts
             series_utc_time[t] = dt.replace(tzinfo=timezone.utc).timestamp()
-            series_date.loc[t] = dt.strftime("%d-%b-%y")
-            series_time.loc[t] = dt.strftime("%H:%M:%S.%f")
-
-            # TODO adjust this once we have mpower file with sessions / laps
-            series_time_lap.loc[t] = format_laptime(t - start_lap_time)
-
-            series_height_m.loc[t] = 0
-            series_height_ft.loc[t] = 0
-            series_accel_source.loc[t] = 1
 
         series_brake_pressure = pd.Series(index=self.time_index, name='BRAKEPRESSURE', dtype='float64')
         for record in self.far_files['BrakeContact.far'].records:
@@ -195,7 +173,6 @@ class MPowerFile:
         for record in self.far_files['Heading.far'].records:
             assert len(record) == 2
             series_heading.loc[record[0]] = math.degrees(record[1])
-        # TODO FILL OR LINEAR???
         series_heading = series_heading.interpolate(method='ffill').fillna(0)
 
         series_speed_kph = pd.Series(index=self.time_index, name='SPEED_KPH', dtype='float64')
@@ -211,7 +188,7 @@ class MPowerFile:
         for record in self.far_files['RPM.far'].records:
             assert len(record) == 2
             series_rpm.loc[record[0]] = record[1]
-        series_rpm = series_rpm.interpolate(method='linear', limit_direction='forward').fillna(0)
+        series_rpm = series_rpm.interpolate(method='linear', limit_direction='forward').fillna(0).round(0)
 
         series_steering = pd.Series(index=self.time_index, name='STEERINGANGLE', dtype='float64')
         for record in self.far_files['Steering.far'].records:
@@ -291,48 +268,15 @@ class MPowerFile:
 
         df_gps = df_gps.fillna(0)
 
-        # minimum CSV headers required by Telemetry Overlay when importing a Harry's Laptimer formatted CSV
-        # headers = [
-        #     'INDEX',
-        #     'LAPINDEX',
-        #     'DATE',
-        #     'TIME',
-        #     'TIME_LAP',
-        #     'LATITUDE',
-        #     'LONGITUDE',
-        #     'SPEED_KPH',
-        #     'SPEED_MPH',
-        #     'HEIGHT_M',
-        #     'HEIGHT_FT',
-        #     'HEADING_DEG',
-        #     'DISTANCE_KM',
-        #     'DISTANCE_MILE',
-        #     'ACCELERATIONSOURCE[CALCULATED/MEASURED/UNDEFINED]',
-        #     'LINEALG',
-        #     'LATERALG',
-        #     'GEAR',
-        #     'RPM',
-        #     'THROTTLE',
-        #     'BRAKEPRESSURE',
-        #     'STEERINGANGLE',
-        # ]
-
         df = pd.DataFrame(index=self.time_index)
-        df = df.merge(series_index, left_index=True, right_index=True)
-        df = df.merge(series_utc_time, left_index=True, right_index=True)
-        df = df.merge(series_lap_index, left_index=True, right_index=True)
-        df = df.merge(series_date, left_index=True, right_index=True)
         df = df.merge(series_time, left_index=True, right_index=True)
-        df = df.merge(series_time_lap, left_index=True, right_index=True)
+        df = df.merge(series_utc_time, left_index=True, right_index=True)
         df = df.merge(df_gps, left_index=True, right_index=True)
         df = df.merge(series_speed_kph, left_index=True, right_index=True)
         df = df.merge(series_speed_mph, left_index=True, right_index=True)
-        df = df.merge(series_height_m, left_index=True, right_index=True)
-        df = df.merge(series_height_ft, left_index=True, right_index=True)
         df = df.merge(series_heading, left_index=True, right_index=True)
         df = df.merge(series_distance_km, left_index=True, right_index=True)
         df = df.merge(series_distance_mi, left_index=True, right_index=True)
-        df = df.merge(series_accel_source, left_index=True, right_index=True)
         df = df.merge(series_linealg, left_index=True, right_index=True)
         df = df.merge(series_lateralg, left_index=True, right_index=True)
         df = df.merge(series_gear, left_index=True, right_index=True)
@@ -345,7 +289,6 @@ class MPowerFile:
         with pd.option_context('display.max_rows', None, 'display.max_columns', None, 'display.max_colwidth', None, 'display.memory_usage', None, 'display.width', 20000):
             lg.debug(df)
 
-        print('Harry\'s GPS LapTimer', file=sys.stdout)
         df.to_csv(path_or_buf=sys.stdout, sep=',', header=True, index=False)
 
 if __name__ == '__main__':
